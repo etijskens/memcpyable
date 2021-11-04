@@ -61,16 +61,22 @@ namespace mpi
                 static_assert(fixed_size_memcpy_able<T>::value || variable_size_memcpy_able<T>::value, "type T is not memcpy-able");
         }
 
-        static size_t size(T& t) 
+     // compute the size that T will occupy in the message. 
+        static size_t messageSize(T& t) 
         {
-            if constexpr(fixed_size_memcpy_able<T>::value)
+            if constexpr(fixed_size_memcpy_able<T>::value) 
+            {// the size of a single T
                 return sizeof(T);
+            }
             else if constexpr(variable_size_memcpy_able<T>::value)
-                return sizeof(typename T::value_type) * t.size();
+            {// the size of siz_t + the size of a single T::value_type times the number of items in the collection
+                return sizeof(size_t) + sizeof(typename T::value_type) * t.size();
+            }
             else
                 static_assert(fixed_size_memcpy_able<T>::value || variable_size_memcpy_able<T>::value, "type T is not memcpy-able");
         }
-        
+
+     // write a T to a buffer
         static void write(T&t, void*& dst) 
         {
             if constexpr(fixed_size_memcpy_able<T>::value)
@@ -94,11 +100,12 @@ namespace mpi
                 static_assert(fixed_size_memcpy_able<T>::value || variable_size_memcpy_able<T>::value, "type T is not memcpy-able");
         }
 
+     // read a T from a buffer
         static void read(T&t, void*& src) 
         {
             if constexpr(fixed_size_memcpy_able<T>::value)
             {// read the variable t
-                memcpy( ptr(t), src, size(t) );
+                memcpy( ptr(t), src, sizeof(t) );
              // advance the pointer in the buffer
                 src = (Index_t*)(src) + sizeof(t);
             }
@@ -119,11 +126,17 @@ namespace mpi
                 static_assert(fixed_size_memcpy_able<T>::value || variable_size_memcpy_able<T>::value, "type T is not memcpy-able");
         }
     };
-
+ //-------------------------------------------------------------------------------------------------
+ // Two convenience template functions that allow to replace
+ //     memcpy_traits<T>::write(t,dst);
+ // with
+ //     write(t,dst);
+ // The template parameter is inferred from the first argument.
+ 
     template <typename T>
     void write( T&t, void*& dst)
     {
-        memcpy_traits<T>::write(t,dst);   
+        memcpy_traits<T>::write(t,dst);
     }
     template <typename T>
     void read( T&t, void*& src)
